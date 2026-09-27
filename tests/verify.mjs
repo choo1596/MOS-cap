@@ -90,6 +90,30 @@ await page.screenshot({ path: path.join(out, "fresh_E0.png") });
 await page.evaluate(() => { MOS.toggleSwitch(); MOS.setVG(MOS.params.VFB - 1); MOS.settle(); MOS.showE0(false); });
 await page.screenshot({ path: path.join(out, "accumulation.png") });
 
+// 4. real UI: switch button + slider (mouse drag and keyboard)
+await page.evaluate(() => { MOS.reset(); MOS.setManualClock(false); });
+check("slider locked before first connection", await page.locator("#vgSlider").isDisabled());
+await page.click("#switchBtn");
+check("switch button closes the switch", (await page.evaluate(() => MOS.state())).closed);
+const box = await page.locator("#vgSlider").boundingBox();
+await page.mouse.move(box.x + box.width / 2, box.y + box.height / 2);
+await page.mouse.down();
+await page.mouse.move(box.x + box.width - 14, box.y + box.height / 2, { steps: 8 });
+await page.mouse.up();
+const vDrag = (await page.evaluate(() => MOS.state())).VG;
+check("mouse drag moves V_G to the right end", Math.abs(vDrag - p.VMAX) < 0.05, vDrag.toFixed(2));
+await page.locator("#vgSlider").focus();
+for (let i = 0; i < 10; i++) await page.keyboard.press("ArrowLeft");
+const vKey = (await page.evaluate(() => MOS.state())).VG;
+check("arrow keys step 0.01 V", Math.abs(vDrag - vKey - 0.10) < 0.006, vKey.toFixed(2));
+await page.click("#stepUp");
+check("+ button steps 0.01 V", Math.abs((await page.evaluate(() => MOS.state())).VG - vKey - 0.01) < 0.006);
+await page.click("#pVT");
+await page.waitForTimeout(2500);
+const sVT = await page.evaluate(() => MOS.state());
+check("V_T preset settles in real time", Math.abs(sVT.Vint - p.VT) < 0.01, sVT.Vint.toFixed(3));
+await page.screenshot({ path: path.join(out, "ui_slider.png") });
+
 check("no console errors / failed asserts", errors.length === 0, errors.join(" | "));
 await browser.close();
 console.log(fails ? `\n${fails} check(s) FAILED` : "\nALL CHECKS PASSED");

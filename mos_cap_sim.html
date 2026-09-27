@@ -6,6 +6,7 @@
 <title>MOS Capacitor Simulator</title>
 <style>
 :root {
+  color-scheme: light;
   --ink: #111;
   --muted: #6b6b6b;
   --line: #000;
@@ -61,23 +62,42 @@ header .meta { font-size: 12.5px; color: #444; }
 #controls { font-size: 13px; }
 #switchBtn {
   position: absolute; left: 16px; top: 30px; width: 150px; height: 40px; font: bold 14px Arial, sans-serif;
-  border: 2px solid var(--ink); background: #fff; cursor: pointer; border-radius: 4px;
+  border: 2px solid var(--ink); background: #fff; color: var(--ink); cursor: pointer; border-radius: 4px;
 }
 #switchBtn.closed { background: var(--ink); color: #fff; }
-#switchBtn:focus-visible, .btn:focus-visible, #knob:focus-visible { outline: 3px solid var(--blue); outline-offset: 2px; }
+#switchBtn:focus-visible, .btn:focus-visible, .step:focus-visible { outline: 3px solid var(--blue); outline-offset: 2px; }
 #switchState { position: absolute; left: 16px; top: 76px; width: 150px; font-size: 12px; color: var(--muted); text-align: center; }
-#knobWrap { position: absolute; left: 190px; top: 22px; width: 130px; height: 130px; }
-#knob { cursor: grab; touch-action: none; outline: none; border-radius: 50%; }
-#knob.disabled { cursor: not-allowed; opacity: .38; }
-#vgBox { position: absolute; left: 330px; top: 36px; width: 128px; }
-#vgVal { font-size: 22px; font-weight: bold; font-variant-numeric: tabular-nums; }
+#vgBox { position: absolute; left: 196px; top: 26px; width: 150px; }
+#vgVal { font-size: 26px; font-weight: bold; font-variant-numeric: tabular-nums; color: #123a6b; }
 #vgLbl { font-size: 12px; color: var(--muted); }
 #disc { font-size: 12px; color: #9a9a9a; font-style: italic; }
-#dialHint { position: absolute; left: 330px; top: 112px; width: 128px; font-size: 11px; color: var(--muted); line-height: 1.35; }
-#vline { position: absolute; left: 6px; top: 160px; }
+#steps { position: absolute; right: 16px; top: 40px; display: flex; gap: 6px; }
+.step {
+  width: 34px; height: 30px; padding: 0; font: 17px Arial, sans-serif; line-height: 1;
+  border: 1px solid #b7c2d0; background: #fff; color: #2b3440; border-radius: 5px; cursor: pointer;
+}
+.step:hover { background: #eef3fa; }
+.step:disabled { opacity: .4; cursor: not-allowed; }
+#slWrap { position: absolute; left: 16px; top: 112px; width: 434px; }
+#vgSlider {
+  -webkit-appearance: none; appearance: none; display: block; width: 100%; height: 28px;
+  background: transparent; cursor: pointer; margin: 0;
+}
+#vgSlider:disabled { cursor: not-allowed; opacity: .4; }
+#vgSlider:focus { outline: none; }
+#vgSlider:focus-visible::-webkit-slider-thumb { outline: 3px solid var(--blue); outline-offset: 1px; }
+#vgSlider::-webkit-slider-runnable-track { height: 8px; background: #ccd6e2; border-radius: 4px; }
+#vgSlider::-webkit-slider-thumb {
+  -webkit-appearance: none; width: 24px; height: 24px; margin-top: -8px; border-radius: 50%;
+  background: #c0392b; border: 2px solid #fff; box-shadow: 0 1px 3px rgba(0,0,0,.35);
+}
+#vgSlider::-moz-range-track { height: 8px; background: #ccd6e2; border-radius: 4px; }
+#vgSlider::-moz-range-thumb { width: 22px; height: 22px; border-radius: 50%; background: #c0392b; border: 2px solid #fff; box-shadow: 0 1px 3px rgba(0,0,0,.35); }
+#dialHint { position: absolute; left: 196px; top: 86px; width: 254px; font-size: 11px; color: var(--muted); }
+#vline { position: absolute; left: 6px; top: 146px; }
 #presets { position: absolute; left: 16px; top: 244px; display: flex; gap: 8px; align-items: center; }
 .btn {
-  font: 13px Arial, sans-serif; padding: 6px 11px; border: 1px solid #8a96a3; background: #fff; border-radius: 3px; cursor: pointer;
+  font: 13px Arial, sans-serif; padding: 6px 11px; border: 1px solid #8a96a3; background: #fff; color: var(--ink); border-radius: 3px; cursor: pointer;
 }
 .btn:hover { background: #f1f5f8; }
 .btn:disabled { opacity: .4; cursor: not-allowed; }
@@ -128,9 +148,10 @@ header .meta { font-size: 12.5px; color: #444; }
   <div class="ptitle">Controls</div>
   <button id="switchBtn" type="button">Close switch</button>
   <div id="switchState">switch open</div>
-  <div id="knobWrap"><svg id="knob" width="130" height="130" viewBox="0 0 130 130" tabindex="0" role="slider" aria-label="Gate voltage"></svg></div>
   <div id="vgBox"><div id="vgLbl">source V<sub>G</sub></div><div id="vgVal">+0.00 V</div><div id="disc" hidden>(disconnected)</div></div>
-  <div id="dialHint">Drag or scroll: 0.01 V steps (Shift: 0.1 V)</div>
+  <div id="steps"><button class="step" id="stepDown" type="button" title="−0.01 V">−</button><button class="step" id="stepUp" type="button" title="+0.01 V">+</button></div>
+  <div id="dialHint">Drag the slider left or right (0.01 V steps; arrow keys and −/+ also work)</div>
+  <div id="slWrap"><input type="range" id="vgSlider" aria-label="Gate voltage V_G"></div>
   <svg id="vline" width="454" height="78" viewBox="0 0 454 78"></svg>
   <div id="presets">
     <span style="color:var(--muted)">Presets:</span>
@@ -625,32 +646,8 @@ function renderD(st) {
 }
 
 /* ============================================================
-   Controls: knob, V_G number line (slide 13), presets
+   Controls: V_G slider, V_G number line (slide 13), presets
    ============================================================ */
-const KN = { cx: 65, cy: 65, r: 44, a0: -135, a1: 135 };
-function vToAng(v) { return KN.a0 + (v - VMIN) / (VMAX - VMIN) * (KN.a1 - KN.a0); }
-function angToV(a) { return VMIN + (a - KN.a0) / (KN.a1 - KN.a0) * (VMAX - VMIN); }
-function polar(a, r) { const t = (a - 90) * Math.PI / 180; return [KN.cx + r * Math.cos(t), KN.cy + r * Math.sin(t)]; }
-
-function renderKnob() {
-  let h = "";
-  const [sx, sy] = polar(KN.a0, KN.r + 9), [ex, ey] = polar(KN.a1, KN.r + 9);
-  h += `<path d="M${sx} ${sy} A${KN.r + 9} ${KN.r + 9} 0 1 1 ${ex} ${ey}" fill="none" stroke="#c9d3dc" stroke-width="4"/>`;
-  [[VFB, "V_FB"], [VT, "V_T"], [0, "0"]].forEach(([v]) => {
-    const [a1x, a1y] = polar(vToAng(v), KN.r + 5), [a2x, a2y] = polar(vToAng(v), KN.r + 14);
-    h += `<line x1="${a1x}" y1="${a1y}" x2="${a2x}" y2="${a2y}" stroke="${v === 0 ? "#555" : "#1592d2"}" stroke-width="2"/>`;
-  });
-  h += `<circle cx="${KN.cx}" cy="${KN.cy}" r="${KN.r}" fill="#f4f6f8" stroke="#333" stroke-width="2"/>`;
-  h += `<circle cx="${KN.cx}" cy="${KN.cy}" r="${KN.r - 9}" fill="#fff" stroke="#b8c2cc" stroke-width="1"/>`;
-  const [px, py] = polar(vToAng(sim.VG), KN.r - 6), [qx, qy] = polar(vToAng(sim.VG), 12);
-  h += `<line x1="${qx}" y1="${qy}" x2="${px}" y2="${py}" stroke="#c0392b" stroke-width="4" stroke-linecap="round"/>`;
-  h += `<text x="${KN.cx}" y="${KN.cy + 4}" font-size="11" text-anchor="middle" fill="#555" style="fill:#555">V<tspan class="sub" dy="2">G</tspan></text>`;
-  $("knob").innerHTML = h;
-  $("knob").setAttribute("aria-valuenow", sim.VG.toFixed(2));
-  $("knob").setAttribute("aria-valuemin", VMIN.toFixed(2));
-  $("knob").setAttribute("aria-valuemax", VMAX.toFixed(2));
-}
-
 function renderVline(st) {
   const L = 22, R = 432, y = 40, X = v => L + (v - VMIN) / (VMAX - VMIN) * (R - L);
   let h = "";
@@ -678,7 +675,7 @@ function renderVline(st) {
 function setVG(v) {
   sim.VG = Math.max(VMIN, Math.min(VMAX, v));
 }
-function knobEnabled() { return sim.everConnected; }
+function sliderEnabled() { return sim.everConnected; }
 function toggleSwitch() {
   sim.closed = !sim.closed;
   if (sim.closed) sim.everConnected = true;
@@ -694,46 +691,22 @@ $("helpBtn").addEventListener("click", () => {
 });
 $("e0Toggle").addEventListener("change", ev => { sim.showE0 = ev.target.checked; });
 const presets = { pVFB: () => VFB, p0: () => 0, pVT: () => VT, pVT1: () => VT + 1 };
-Object.keys(presets).forEach(id => $(id).addEventListener("click", () => { if (knobEnabled()) setVG(presets[id]()); }));
+Object.keys(presets).forEach(id => $(id).addEventListener("click", () => { if (sliderEnabled()) setVG(presets[id]()); }));
 
-(function knobInput() {
-  const kn = $("knob");
-  let drag = false;
-  const angFromEvent = ev => {
-    const r = kn.getBoundingClientRect();
-    const x = (ev.clientX - r.left) / r.width * 130 - KN.cx, y = (ev.clientY - r.top) / r.height * 130 - KN.cy;
-    let a = Math.atan2(x, -y) * 180 / Math.PI;
-    return Math.max(KN.a0, Math.min(KN.a1, a));
-  };
-  kn.addEventListener("pointerdown", ev => {
-    if (!knobEnabled()) return;
-    drag = true; kn.setPointerCapture(ev.pointerId); kn.style.cursor = "grabbing";
-    setVG(Math.round(angToV(angFromEvent(ev)) * 100) / 100);
-  });
-  kn.addEventListener("pointermove", ev => { if (drag) setVG(Math.round(angToV(angFromEvent(ev)) * 100) / 100); });
-  const end = () => { drag = false; kn.style.cursor = ""; };
-  kn.addEventListener("pointerup", end); kn.addEventListener("pointercancel", end);
-  kn.addEventListener("wheel", ev => {
-    ev.preventDefault();
-    if (!knobEnabled()) return;
-    const step = ev.shiftKey ? 0.1 : 0.01;
-    setVG(Math.round((sim.VG + (ev.deltaY < 0 ? step : -step)) * 100) / 100);
-  }, { passive: false });
-  kn.addEventListener("keydown", ev => {
-    if (!knobEnabled()) return;
-    const step = ev.shiftKey ? 0.1 : 0.01;
-    if (ev.key === "ArrowUp" || ev.key === "ArrowRight") { setVG(Math.round((sim.VG + step) * 100) / 100); ev.preventDefault(); }
-    if (ev.key === "ArrowDown" || ev.key === "ArrowLeft") { setVG(Math.round((sim.VG - step) * 100) / 100); ev.preventDefault(); }
-  });
-})();
+const slider = $("vgSlider");
+slider.min = VMIN.toFixed(2); slider.max = VMAX.toFixed(2); slider.step = "0.01";
+slider.addEventListener("input", () => { if (sliderEnabled()) setVG(parseFloat(slider.value)); });
+function bump(d) { if (sliderEnabled()) setVG(Math.round((sim.VG + d) * 100) / 100); }
+$("stepDown").addEventListener("click", () => bump(-0.01));
+$("stepUp").addEventListener("click", () => bump(0.01));
 
 function renderControls() {
-  const on = knobEnabled();
+  const on = sliderEnabled();
   $("switchBtn").textContent = sim.closed ? "Open switch" : "Close switch";
   $("switchBtn").classList.toggle("closed", sim.closed);
   $("switchState").textContent = sim.closed ? "switch closed: wire connected" : (sim.everConnected ? "switch open: gate floating" : "switch open: never connected");
-  $("knob").classList.toggle("disabled", !on);
-  $("knob").setAttribute("aria-disabled", String(!on));
+  slider.disabled = !on; $("stepDown").disabled = !on; $("stepUp").disabled = !on;
+  if (Math.abs(parseFloat(slider.value) - sim.VG) > 0.004) slider.value = sim.VG.toFixed(2);
   document.querySelectorAll(".preset").forEach(b => { b.disabled = !on; });
   $("vgVal").textContent = sv(sim.VG) + " V";
   $("disc").hidden = !(on && !sim.closed);
@@ -746,7 +719,7 @@ function renderControls() {
 
 function render() {
   const st = stateOfQm(sim.Qm);
-  renderA(st); renderB(st); renderC(st); renderD(st); renderKnob(); renderVline(st); renderControls();
+  renderA(st); renderB(st); renderC(st); renderD(st); renderVline(st); renderControls();
 }
 
 /* ============================================================
