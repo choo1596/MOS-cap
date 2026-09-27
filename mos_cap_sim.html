@@ -1,0 +1,772 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>MOS Capacitor Simulator</title>
+<style>
+:root {
+  color-scheme: light;
+  --ink: #111;
+  --muted: #6b6b6b;
+  --line: #000;
+  --metal: #b3b3b3;
+  --valence: #d9d9d9;
+  --blue: #1592d2;
+  --navy: #0b4a8b;
+  --red: #c0392b;
+  --dep: #e3f0f9;
+  --panel-border: #d6dce2;
+  --bg: #ffffff;
+}
+html, body { height: 100%; }
+body {
+  margin: 0; background: var(--bg); color: var(--ink);
+  font-family: Arial, Helvetica, sans-serif; overflow: hidden;
+}
+#viewport { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; }
+#stage {
+  position: relative; width: 1280px; height: 720px; flex: none;
+  transform-origin: center center; background: var(--bg);
+}
+.panel { position: absolute; border: 1px solid var(--panel-border); background: var(--bg); }
+#pA .ptitle { left: auto; right: 8px; }
+.ptitle {
+  position: absolute; left: 8px; top: 5px; font-size: 11px; letter-spacing: .06em;
+  text-transform: uppercase; color: var(--muted); pointer-events: none;
+}
+svg { display: block; font-family: Arial, Helvetica, sans-serif; }
+svg text { fill: var(--ink); }
+.sub { font-size: 0.72em; }
+
+header { position: absolute; left: 12px; top: 6px; right: 12px; height: 38px; display: flex; align-items: center; gap: 16px; }
+header h1 { margin: 0; font-size: 22px; color: var(--navy); font-weight: bold; }
+header .meta { font-size: 12.5px; color: #444; }
+#banner {
+  margin-left: auto; font-size: 13px; padding: 5px 12px; border-radius: 3px;
+  border: 1px solid #e0b4ae; background: #fbeeec; color: var(--red); font-weight: bold;
+}
+#banner.fresh { border-color: #b9d7ea; background: #eef6fb; color: var(--navy); }
+
+/* readouts */
+#readouts { position: absolute; left: 12px; top: 26px; right: 12px; display: grid; grid-template-columns: 1fr 1fr; gap: 3px 22px; font-size: 13px; font-variant-numeric: tabular-nums; }
+#readouts .row { display: flex; justify-content: space-between; border-bottom: 1px dotted #d8d8d8; padding: 2px 0; }
+#readouts .k { color: #333; }
+#readouts .v { font-weight: bold; }
+#modeRow { position: absolute; left: 12px; top: 136px; right: 12px; display: flex; align-items: center; gap: 10px; font-size: 13px; }
+#modeChip { padding: 3px 10px; border-radius: 12px; color: #fff; font-weight: bold; letter-spacing: .02em; }
+#modeNote { color: var(--muted); font-size: 12px; }
+#decomp { position: absolute; left: 6px; top: 160px; }
+
+/* controls */
+#controls { font-size: 13px; }
+#switchBtn {
+  position: absolute; left: 16px; top: 30px; width: 150px; height: 40px; font: bold 14px Arial, sans-serif;
+  border: 2px solid var(--ink); background: #fff; color: var(--ink); cursor: pointer; border-radius: 4px;
+}
+#switchBtn.closed { background: var(--ink); color: #fff; }
+#switchBtn:focus-visible, .btn:focus-visible, .step:focus-visible { outline: 3px solid var(--blue); outline-offset: 2px; }
+#switchState { position: absolute; left: 16px; top: 76px; width: 150px; font-size: 12px; color: var(--muted); text-align: center; }
+#vgBox { position: absolute; left: 196px; top: 26px; width: 150px; }
+#vgVal { font-size: 26px; font-weight: bold; font-variant-numeric: tabular-nums; color: #123a6b; }
+#vgLbl { font-size: 12px; color: var(--muted); }
+#disc { font-size: 12px; color: #9a9a9a; font-style: italic; }
+#steps { position: absolute; right: 16px; top: 40px; display: flex; gap: 6px; }
+.step {
+  width: 34px; height: 30px; padding: 0; font: 17px Arial, sans-serif; line-height: 1;
+  border: 1px solid #b7c2d0; background: #fff; color: #2b3440; border-radius: 5px; cursor: pointer;
+}
+.step:hover { background: #eef3fa; }
+.step:disabled { opacity: .4; cursor: not-allowed; }
+#slWrap { position: absolute; left: 16px; top: 112px; width: 434px; }
+#vgSlider {
+  -webkit-appearance: none; appearance: none; display: block; width: 100%; height: 28px;
+  background: transparent; cursor: pointer; margin: 0;
+}
+#vgSlider:disabled { cursor: not-allowed; opacity: .4; }
+#vgSlider:focus { outline: none; }
+#vgSlider:focus-visible::-webkit-slider-thumb { outline: 3px solid var(--blue); outline-offset: 1px; }
+#vgSlider::-webkit-slider-runnable-track { height: 8px; background: #ccd6e2; border-radius: 4px; }
+#vgSlider::-webkit-slider-thumb {
+  -webkit-appearance: none; width: 24px; height: 24px; margin-top: -8px; border-radius: 50%;
+  background: #c0392b; border: 2px solid #fff; box-shadow: 0 1px 3px rgba(0,0,0,.35);
+}
+#vgSlider::-moz-range-track { height: 8px; background: #ccd6e2; border-radius: 4px; }
+#vgSlider::-moz-range-thumb { width: 22px; height: 22px; border-radius: 50%; background: #c0392b; border: 2px solid #fff; box-shadow: 0 1px 3px rgba(0,0,0,.35); }
+#dialHint { position: absolute; left: 196px; top: 86px; width: 254px; font-size: 11px; color: var(--muted); }
+#vline { position: absolute; left: 6px; top: 146px; }
+#presets { position: absolute; left: 16px; top: 244px; display: flex; gap: 8px; align-items: center; }
+.btn {
+  font: 13px Arial, sans-serif; padding: 6px 11px; border: 1px solid #8a96a3; background: #fff; color: var(--ink); border-radius: 3px; cursor: pointer;
+}
+.btn:hover { background: #f1f5f8; }
+.btn:disabled { opacity: .4; cursor: not-allowed; }
+#resetRow { position: absolute; left: 16px; top: 290px; display: flex; gap: 8px; align-items: center; }
+#resetBtn { border-color: var(--red); color: var(--red); }
+#helpBtn { width: 26px; height: 26px; padding: 0; border-radius: 50%; font-weight: bold; }
+#help {
+  position: absolute; left: 16px; top: 322px; width: 430px; padding: 8px 10px; font-size: 12px; line-height: 1.45;
+  background: #f7fafc; border: 1px solid #b9d7ea; z-index: 5;
+}
+#e0Row { position: absolute; right: 16px; top: 294px; font-size: 13px; display: flex; gap: 6px; align-items: center; }
+#note { position: absolute; left: 16px; bottom: 8px; right: 12px; font-size: 11px; color: var(--muted); }
+@media (prefers-reduced-motion: reduce) { * { transition: none !important; } }
+</style>
+</head>
+<body>
+<div id="viewport"><div id="stage">
+
+<header>
+  <h1>MOS Capacitor</h1>
+  <div class="meta">Lecture 5-1 · Al gate / SiO<sub>2</sub> (t<sub>ox</sub> = 10 nm) / p-Si (N<sub>a</sub> = 10<sup>17</sup> cm<sup>−3</sup>), T = 300 K</div>
+  <div id="banner" class="fresh">No wire: Fermi levels stay apart</div>
+</header>
+
+<div class="panel" id="pA" style="left:12px;top:50px;width:440px;height:265px">
+  <div class="ptitle">Device and circuit</div>
+  <svg id="svgA" width="440" height="265" viewBox="0 0 440 265"></svg>
+</div>
+
+<div class="panel" id="pC" style="left:462px;top:50px;width:330px;height:265px">
+  <div class="ptitle">Charge density</div>
+  <svg id="svgC" width="330" height="265" viewBox="0 0 330 265"></svg>
+</div>
+
+<div class="panel" id="pD" style="left:802px;top:50px;width:466px;height:265px">
+  <div class="ptitle">Readout</div>
+  <div id="readouts"></div>
+  <div id="modeRow"><span>Mode:</span><span id="modeChip">flat band</span><span id="modeNote"></span></div>
+  <svg id="decomp" width="454" height="104" viewBox="0 0 454 104"></svg>
+</div>
+
+<div class="panel" id="pB" style="left:12px;top:325px;width:780px;height:385px">
+  <div class="ptitle">Energy band diagram</div>
+  <svg id="svgB" width="780" height="385" viewBox="0 0 780 385"></svg>
+</div>
+
+<div class="panel" id="controls" style="left:802px;top:325px;width:466px;height:385px">
+  <div class="ptitle">Controls</div>
+  <button id="switchBtn" type="button">Close switch</button>
+  <div id="switchState">switch open</div>
+  <div id="vgBox"><div id="vgLbl">source V<sub>G</sub></div><div id="vgVal">+0.00 V</div><div id="disc" hidden>(disconnected)</div></div>
+  <div id="steps"><button class="step" id="stepDown" type="button" title="−0.01 V">−</button><button class="step" id="stepUp" type="button" title="+0.01 V">+</button></div>
+  <div id="dialHint">Drag the slider left or right (0.01 V steps; arrow keys and −/+ also work)</div>
+  <div id="slWrap"><input type="range" id="vgSlider" aria-label="Gate voltage V_G"></div>
+  <svg id="vline" width="454" height="78" viewBox="0 0 454 78"></svg>
+  <div id="presets">
+    <span style="color:var(--muted)">Presets:</span>
+    <button class="btn preset" id="pVFB" type="button">V<sub>FB</sub></button>
+    <button class="btn preset" id="p0" type="button">0 V</button>
+    <button class="btn preset" id="pVT" type="button">V<sub>T</sub></button>
+    <button class="btn preset" id="pVT1" type="button">V<sub>T</sub> + 1 V</button>
+  </div>
+  <div id="resetRow">
+    <button class="btn" id="resetBtn" type="button" title="Fresh device (never connected)">Reset device</button>
+    <button class="btn" id="helpBtn" type="button" aria-expanded="false" title="Help">?</button>
+  </div>
+  <div id="e0Row"><input type="checkbox" id="e0Toggle"><label for="e0Toggle">Show vacuum level E<sub>0</sub></label></div>
+  <div id="help" hidden>
+    <b>Reset device</b> returns a fresh device that was never connected (slide 8): no charge, flat bands, E<sub>Fm</sub> − E<sub>F,Si</sub> = −eφ<sub>ms</sub>.<br>
+    Opening and closing the switch does <b>not</b> flatten the bands: opening traps the charge, and closing again drives the device toward the source V<sub>G</sub>.
+    To get flat bands with the wire connected, close the switch and press the <b>V<sub>FB</sub></b> preset (slide 10).
+  </div>
+  <div id="note">Inversion charge assumed in equilibrium (slow generation ignored; see Lecture 5-2). Band diagram not to scale in x.</div>
+</div>
+
+</div></div>
+
+<script>
+"use strict";
+/* ============================================================
+   Physical model (Lecture 5-1 formulas)
+   ============================================================ */
+const e = 1.602e-19, eps0 = 8.854e-14;
+const P = {
+  phit: 0.02585, Na: 1e17, ni: 1.5e10, Eg: 1.12, chi: 4.01,
+  epsS: 11.7 * eps0, epsOx: 3.9 * eps0, tox: 10e-7, chiOx: 0.95, phim: 4.28
+};
+const phifp = P.phit * Math.log(P.Na / P.ni);                 // slide 12
+const phims = P.phim - (P.chi + P.Eg / 2 + phifp);           // slide 24
+const VFB = phims;                                            // slide 10
+const Cox = P.epsOx / P.tox;                                  // slide 26
+const K = Math.sqrt(2 * e * P.Na * P.epsS);                   // √(2eN_aε_s)
+const b = K / Cox;                                            // slide 30
+const xdT = Math.sqrt(2 * P.epsS * (2 * phifp) / (e * P.Na)); // slide 23 (cm)
+const QdepMax = -e * P.Na * xdT;                              // slide 32
+const VT = VFB + 2 * phifp + K * Math.sqrt(2 * phifp) / Cox;  // slide 32
+const LD = Math.sqrt(P.epsS * P.phit / (e * e * P.Na));       // Debye length (cm)
+const QD = K * Math.sqrt(P.phit);                             // charge scale for the drawn accumulation bend
+const TAU = 0.4;                                              // s, transient time constant
+const VMIN = VFB - 2, VMAX = VT + 2;
+
+/* Equilibrium gate charge Q'_m = −Q'_s for a gate-body voltage V (slides 29–33). */
+function QmOfV(V) {
+  if (V <= VFB) return Cox * (V - VFB);                              // accumulation: Q'_acc = −C_ox(V_G − V_FB)
+  if (V <= VT) {                                                     // depletion: V_G − V_FB = φ_s + b√φ_s
+    const s = (-b + Math.sqrt(b * b + 4 * (V - VFB))) / 2;
+    return K * s;                                                    // −Q'_dep = √(2eN_aε_sφ_s)
+  }
+  return -QdepMax + Cox * (V - VT);                                  // inversion: Q'_inv = −C_ox(V_G − V_T)
+}
+
+/* Device state from the gate charge (the only state variable). */
+function stateOfQm(Qm) {
+  const s = { Qm, phis: 0, Qacc: 0, Qdep: 0, Qinv: 0, xd: 0 };
+  if (Qm <= 0) {
+    s.Qacc = -Qm;                                                    // holes, φ_s ≈ 0 (slide 29)
+  } else if (Qm <= -QdepMax) {
+    const r = Qm / K;
+    s.phis = r * r; s.Qdep = -Qm; s.xd = Qm / (e * P.Na);
+  } else {
+    s.phis = 2 * phifp; s.Qdep = QdepMax; s.xd = xdT; s.Qinv = -(Qm + QdepMax);
+  }
+  s.Qs = -Qm;
+  s.Vox = Qm / Cox;                                                  // V_ox = Q'_m/C_ox
+  s.Vint = phims + s.Vox + s.phis;                                   // voltage this charge requires
+  return s;
+}
+
+/* ============================================================
+   Simulation state
+   ============================================================ */
+const sim = {
+  Qm: 0, closed: false, everConnected: false, VG: 0,
+  current: 0, showE0: false, manualClock: false, holePhase: 0
+};
+
+function stepPhysics(dt) {
+  const before = sim.Qm;
+  if (sim.closed) {
+    // RC with R' chosen as τ/C_diff: V_int relaxes to V_G with a fixed τ, charge follows.
+    const Vint = stateOfQm(sim.Qm).Vint;
+    const Vnew = sim.VG + (Vint - sim.VG) * Math.exp(-dt / TAU);
+    sim.Qm = QmOfV(Vnew);
+  }
+  sim.current = dt > 0 ? (sim.Qm - before) / dt : 0;
+  // carriers on the wire: speed follows the current
+  const speed = Math.max(-1, Math.min(1, sim.current / 4e-7));
+  sim.holePhase = (sim.holePhase + speed * dt * 140 + 1e6) % 1e6;
+}
+
+/* ============================================================
+   Formatting helpers
+   ============================================================ */
+const SUP = { "-": "⁻", "0": "⁰", "1": "¹", "2": "²", "3": "³", "4": "⁴", "5": "⁵", "6": "⁶", "7": "⁷", "8": "⁸", "9": "⁹" };
+function sci(x, d = 2) {
+  if (Math.abs(x) < 1e-15) return "0";
+  const ex = Math.floor(Math.log10(Math.abs(x)));
+  const m = x / Math.pow(10, ex);
+  return (m < 0 ? "−" : "") + Math.abs(m).toFixed(d) + "×10" + String(ex).split("").map(c => SUP[c]).join("");
+}
+function sv(x, d = 2) { const t = Math.abs(x).toFixed(d); return (x < 0 && +t !== 0 ? "−" : x > 0 && +t !== 0 ? "+" : "") + t; }
+const $ = id => document.getElementById(id);
+
+/* ============================================================
+   Panel A: device and circuit
+   ============================================================ */
+const A = { gx0: 170, gx1: 330, gy0: 34, gy1: 86, ox0: 140, ox1: 360, oy1: 94, sy1: 214, nodeY: 232 };
+A.siDepthPx = A.sy1 - A.oy1;                   // 120 px = 2.5 x_dT
+const Q0 = -QdepMax / 30;                      // charge represented by one symbol
+const counts = { gate: 0, dep: 0, inv: 0, acc: 0 };
+
+const wirePath = [[250, 214], [250, A.nodeY], [50, A.nodeY], [50, 16], [250, 16], [250, A.gy0]]; // Si → gate
+const wireLen = []; let wireTotal = 0;
+for (let i = 1; i < wirePath.length; i++) {
+  const L = Math.hypot(wirePath[i][0] - wirePath[i - 1][0], wirePath[i][1] - wirePath[i - 1][1]);
+  wireLen.push(L); wireTotal += L;
+}
+function pointOnWire(s) {
+  s = ((s % wireTotal) + wireTotal) % wireTotal;
+  for (let i = 0; i < wireLen.length; i++) {
+    if (s <= wireLen[i]) {
+      const a = wirePath[i], c = wirePath[i + 1], t = s / wireLen[i];
+      return [a[0] + (c[0] - a[0]) * t, a[1] + (c[1] - a[1]) * t];
+    }
+    s -= wireLen[i];
+  }
+  return wirePath[wirePath.length - 1];
+}
+
+function renderA(st) {
+  let h = "";
+  h += `<defs><pattern id="hatch" width="6" height="6" patternUnits="userSpaceOnUse" patternTransform="rotate(45)"><rect width="6" height="6" fill="#fff"/><line x1="0" y1="0" x2="0" y2="6" stroke="#000" stroke-width="1.2"/></pattern></defs>`;
+  // wire (with gaps for the switch and source)
+  const sw = { x: 50, y0: 62, y1: 100 }, bat = { y: 150 };
+  h += `<path d="M250 ${A.gy0} V16 H50 V${sw.y0} M50 ${sw.y1} V${bat.y - 5} M50 ${bat.y + 5} V${A.nodeY} H250 V${A.sy1}" fill="none" stroke="#000" stroke-width="1.4"/>`;
+  // switch
+  h += `<g id="swSym" style="cursor:pointer">`;
+  h += `<rect x="28" y="${sw.y0 - 8}" width="44" height="${sw.y1 - sw.y0 + 16}" fill="#fff" fill-opacity="0"/>`;
+  h += `<circle cx="50" cy="${sw.y0}" r="3" fill="#fff" stroke="#000" stroke-width="1.3"/><circle cx="50" cy="${sw.y1}" r="3" fill="#fff" stroke="#000" stroke-width="1.3"/>`;
+  if (sim.closed) h += `<line x1="50" y1="${sw.y1 - 3}" x2="50" y2="${sw.y0 + 3}" stroke="#000" stroke-width="2"/>`;
+  else h += `<line x1="50" y1="${sw.y1 - 3}" x2="${50 + 22}" y2="${sw.y0 + 6}" stroke="#000" stroke-width="2"/>`;
+  h += `<text x="20" y="${(sw.y0 + sw.y1) / 2 + 4}" font-size="11" text-anchor="end" fill="#444">S</text></g>`;
+  // voltage source: long plate = +, short thick plate = −
+  const topPlus = sim.VG >= 0;
+  const yTop = bat.y - 5, yBot = bat.y + 5;
+  const longY = topPlus ? yTop : yBot, shortY = topPlus ? yBot : yTop;
+  h += `<line x1="35" y1="${longY}" x2="65" y2="${longY}" stroke="#000" stroke-width="1.6"/>`;
+  h += `<line x1="42" y1="${shortY}" x2="58" y2="${shortY}" stroke="#000" stroke-width="3.2"/>`;
+  h += `<text x="71" y="${yTop - 1}" font-size="12">${topPlus ? "+" : "−"}</text><text x="71" y="${yBot + 10}" font-size="12">${topPlus ? "−" : "+"}</text>`;
+  h += `<text x="84" y="${bat.y - 2}" font-size="14" font-style="italic" style="fill:#1592d2">V<tspan class="sub" dy="3">G</tspan></text>`;
+  h += `<text x="84" y="${bat.y + 13}" font-size="11" style="fill:#1592d2">${sv(sim.VG)} V</text>`;
+  // ground
+  h += `<line x1="250" y1="${A.nodeY}" x2="250" y2="${A.nodeY + 10}" stroke="#000" stroke-width="1.4"/>`;
+  h += `<line x1="236" y1="${A.nodeY + 10}" x2="264" y2="${A.nodeY + 10}" stroke="#000" stroke-width="1.6"/><line x1="241" y1="${A.nodeY + 15}" x2="259" y2="${A.nodeY + 15}" stroke="#000" stroke-width="1.6"/><line x1="246" y1="${A.nodeY + 20}" x2="254" y2="${A.nodeY + 20}" stroke="#000" stroke-width="1.6"/>`;
+  h += `<text x="230" y="${A.nodeY + 17}" font-size="11" text-anchor="end" style="fill:#444">body (ground)</text>`;
+  // structure
+  h += `<rect x="${A.ox0}" y="${A.oy1}" width="${A.ox1 - A.ox0}" height="${A.sy1 - A.oy1}" fill="#eeeeee" stroke="#000" stroke-width="1.3"/>`;
+  // depletion region
+  const xdPx = st.xd / xdT * (A.siDepthPx / 2.5);
+  if (xdPx > 0.5) {
+    h += `<rect x="${A.ox0 + 0.7}" y="${A.oy1}" width="${A.ox1 - A.ox0 - 1.4}" height="${xdPx}" fill="#dcebf6"/>`;
+    h += `<line x1="${A.ox0}" y1="${A.oy1 + xdPx}" x2="${A.ox1}" y2="${A.oy1 + xdPx}" stroke="#1592d2" stroke-dasharray="1.5 2.5" stroke-width="1.2"/>`;
+    h += `<text x="${A.ox1 + 5}" y="${A.oy1 + xdPx + 4}" font-size="12" font-style="italic" style="fill:#1592d2">x<tspan class="sub" dy="3">${st.Qinv < 0 ? "dT" : "d"}</tspan></text>`;
+  }
+  h += `<rect x="${A.ox0}" y="${A.gy1}" width="${A.ox1 - A.ox0}" height="${A.oy1 - A.gy1}" fill="url(#hatch)" stroke="#000" stroke-width="1.2"/>`;
+  h += `<rect x="${A.gx0}" y="${A.gy0}" width="${A.gx1 - A.gx0}" height="${A.gy1 - A.gy0}" fill="#b3b3b3" stroke="#000" stroke-width="1.2"/>`;
+  h += `<text x="${A.gx1 + 6}" y="${A.gy0 + 14}" font-size="11">gate metal (M)</text>`;
+  h += `<text x="${A.ox1 + 6}" y="${A.oy1 - 1}" font-size="11">oxide (SiO<tspan class="sub" dy="3">2</tspan><tspan dy="-3">)</tspan></text>`;
+  h += `<text x="${A.ox1 + 6}" y="${A.sy1 - 4}" font-size="11"><tspan font-style="italic">p</tspan>-Si (S)</text>`;
+  h += `<text x="${(A.ox0 + A.ox1) / 2}" y="${A.sy1 - 10}" font-size="11" text-anchor="middle" fill="#888" style="fill:#8a8a8a">neutral bulk</text>`;
+
+  // symbol counts (charge neutrality: gate symbols = Si symbols)
+  const nG = Math.round(Math.abs(st.Qm) / Q0);
+  let nInv = 0, nDep = 0, nAcc = 0;
+  if (st.Qm < 0) nAcc = nG;
+  else { nInv = Math.min(nG, Math.round(Math.abs(st.Qinv) / Q0)); nDep = nG - nInv; }
+  counts.gate = nG; counts.dep = nDep; counts.inv = nInv; counts.acc = nAcc;
+
+  // gate sheet: + (or − in accumulation), uniform grid from the oxide upward
+  const gCols = 20, gPitchX = (A.gx1 - A.gx0) / gCols, gPitchY = 6;
+  const gSym = st.Qm >= 0 ? "+" : "−", gCol = st.Qm >= 0 ? "#c0392b" : "#1592d2";
+  for (let i = 0; i < nG; i++) {
+    const c = i % gCols, r = Math.floor(i / gCols);
+    const x = A.gx0 + (c + 0.5) * gPitchX, y = A.gy1 - 3 - r * gPitchY;
+    h += `<text x="${x}" y="${y + 3}" font-size="10" font-weight="bold" text-anchor="middle" style="fill:${gCol}">${gSym}</text>`;
+  }
+  // Si surface layer (inversion electrons or accumulated holes)
+  const sCols = 29, sPitchX = (A.ox1 - A.ox0) / sCols, sPitchY = 3.6;
+  const nSurf = nInv + nAcc;
+  const surfRows = Math.ceil(nSurf / sCols);
+  for (let i = 0; i < nSurf; i++) {
+    const c = i % sCols, r = Math.floor(i / sCols);
+    const x = A.ox0 + (c + 0.5) * sPitchX, y = A.oy1 + 2.5 + r * sPitchY;
+    if (nInv) h += `<circle cx="${x}" cy="${y}" r="1.5" fill="#000"/>`;
+    else h += `<text x="${x}" y="${y + 3}" font-size="9" font-weight="bold" text-anchor="middle" style="fill:#c0392b">+</text>`;
+  }
+  // ionized acceptors: uniform lattice filling the depletion width
+  if (nDep > 0) {
+    const dCols = 10, dPitchX = (A.ox1 - A.ox0) / dCols;
+    const rows = Math.ceil(nDep / dCols);
+    const top = A.oy1 + (nInv ? Math.min(surfRows * sPitchY + 2, xdPx * 0.35) : 0);
+    const pitchY = (A.oy1 + xdPx - top) / rows;
+    for (let i = 0; i < nDep; i++) {
+      const c = i % dCols, r = Math.floor(i / dCols);
+      h += `<text x="${A.ox0 + (c + 0.5) * dPitchX}" y="${top + (r + 0.5) * pitchY + 4}" font-size="12" font-weight="bold" text-anchor="middle" style="fill:#1592d2">−</text>`;
+    }
+  }
+  // holes moving along the wire
+  const I = sim.current;
+  if (sim.closed && Math.abs(I) > 3e-9) {
+    const spacing = 26;
+    for (let s = 0; s < wireTotal; s += spacing) {
+      const [x, y] = pointOnWire(s + sim.holePhase % spacing);
+      h += `<circle cx="${x}" cy="${y}" r="3.2" fill="#fff" stroke="#c0392b" stroke-width="1.4"/>`;
+    }
+    const toGate = I > 0;
+    h += `<text x="112" y="34" font-size="11" text-anchor="middle" style="fill:#c0392b">${toGate ? "holes move to the gate" : "holes move back to the Si"}</text>`;
+    h += toGate
+      ? `<path d="M70 42 L150 42 M144 38 L150 42 L144 46" fill="none" stroke="#c0392b" stroke-width="1.3"/>`
+      : `<path d="M150 42 L70 42 M76 38 L70 42 L76 46" fill="none" stroke="#c0392b" stroke-width="1.3"/>`;
+  }
+  // legend
+  h += `<g font-size="10" style="fill:#666"><text x="290" y="228" style="fill:#666"><tspan style="fill:#c0392b" font-weight="bold">+</tspan> gate charge / hole</text>`;
+  h += `<text x="290" y="240" style="fill:#666"><tspan style="fill:#1592d2" font-weight="bold">−</tspan> ionized acceptor / gate charge</text>`;
+  h += `<text x="290" y="252" style="fill:#666">● electron</text>`;
+  h += `<text x="290" y="264" style="fill:#666">1 symbol = ${sci(Q0, 1)} C/cm²</text></g>`;
+  $("svgA").innerHTML = h;
+}
+
+/* ============================================================
+   Panel B: energy band diagram (Si bulk E_F = 0 eV)
+   ============================================================ */
+const B = { mx0: 18, mx1: 168, ox1: 238, sx1: 700, yTop: 26, yBot: 342 };
+B.pxPerCm = (B.sx1 - B.ox1) / (2.5 * xdT);
+const EcB = phifp + P.Eg / 2, EiB = phifp, EvB = phifp - P.Eg / 2;
+
+function bendAt(xcm, st, phiDraw) {
+  if (phiDraw >= 0) {
+    if (st.xd <= 0) return 0;
+    const u = 1 - xcm / st.xd;
+    return u > 0 ? phiDraw * u * u : 0;
+  }
+  return phiDraw * Math.exp(-xcm / (3 * LD));   // drawn 3× wider than L_D so the thin layer is visible
+}
+
+function renderB(st) {
+  const Emax = sim.showE0 ? 7.2 : 4.3, Emin = -2.9;
+  const k = (B.yBot - B.yTop) / (Emax - Emin);
+  const Y = E => B.yTop + (Emax - E) * k;
+  // bending drawn in Si: model φ_s in depletion/inversion, a small upward bend in accumulation (display only)
+  const phiDraw = st.Qm < 0 ? -2 * P.phit * Math.log(1 + st.Qacc / QD) : st.phis;
+  const EFm = -st.Vint;                                       // gate Fermi level = −eV_int
+  // self-check: E_Fm from the vacuum-level chain equals −eV_int
+  const E0sModel = EcB - st.phis + P.chi;
+  console.assert(Math.abs((E0sModel - st.Vox - P.phim) - EFm) < 1e-9, "E_Fm identity failed");
+  const E0s = EcB - phiDraw + P.chi;                          // drawn Si surface vacuum level
+  const E0g = EFm + P.phim;                                   // gate-side vacuum level
+  // oxide E_c: true height (χ − χ_ox above Si E_c) when E_0 is shown, compressed like slide 9 otherwise;
+  // the slope across the oxide is always the true one (E_0 gate side − E_0 Si side)
+  const oxStep = sim.showE0 ? P.chi - P.chiOx : 1.0;
+  const oxTopS = EcB - phiDraw + oxStep, oxTopG = oxTopS + (E0g - E0s);
+
+  let h = `<defs><clipPath id="plotClip"><rect x="0" y="${B.yTop}" width="780" height="${B.yBot - B.yTop}"/></clipPath></defs>`;
+  h += `<g clip-path="url(#plotClip)">`;
+  // depletion shading
+  const xdPx = st.xd * B.pxPerCm;
+  if (xdPx > 0.5) h += `<rect x="${B.ox1}" y="${B.yTop}" width="${xdPx}" height="${B.yBot - B.yTop}" fill="#e3f0f9"/>`;
+  // Si bands
+  const N = 120, pts = { c: [], i: [], v: [], o: [] };
+  for (let j = 0; j <= N; j++) {
+    const x = B.ox1 + (B.sx1 - B.ox1) * j / N;
+    const xcm = (x - B.ox1) / B.pxPerCm;
+    const ph = bendAt(xcm, st, phiDraw);
+    pts.c.push([x, Y(EcB - ph)]); pts.i.push([x, Y(EiB - ph)]); pts.v.push([x, Y(EvB - ph)]); pts.o.push([x, Y(EcB - ph + P.chi)]);
+  }
+  const poly = a => a.map(p => p[0].toFixed(1) + "," + p[1].toFixed(1)).join(" ");
+  h += `<polygon points="${poly(pts.v)} ${B.sx1},${B.yBot} ${B.ox1},${B.yBot}" fill="#d9d9d9"/>`;
+  h += `<polyline points="${poly(pts.v)}" fill="none" stroke="#000" stroke-width="1.8"/>`;
+  h += `<polyline points="${poly(pts.c)}" fill="none" stroke="#000" stroke-width="1.8"/>`;
+  h += `<polyline points="${poly(pts.i)}" fill="none" stroke="#000" stroke-width="1.1" stroke-dasharray="9 3 2 3"/>`;
+  h += `<line x1="${B.ox1}" y1="${Y(0)}" x2="${B.sx1}" y2="${Y(0)}" stroke="#000" stroke-width="1.3" stroke-dasharray="5 3"/>`;
+  // metal
+  h += `<rect x="${B.mx0}" y="${Y(EFm)}" width="${B.mx1 - B.mx0}" height="${Math.max(0, B.yBot - Y(EFm))}" fill="#b3b3b3"/>`;
+  h += `<line x1="${B.mx0}" y1="${Y(EFm)}" x2="${B.mx1}" y2="${Y(EFm)}" stroke="#000" stroke-width="1.6"/>`;
+  // oxide
+  h += `<path d="M${B.mx1} ${B.yBot + 2} V${Y(oxTopG)} L${B.ox1} ${Y(oxTopS)} V${B.yBot + 2}" fill="#fff" stroke="#000" stroke-width="1.6"/>`;
+  // vacuum level
+  if (sim.showE0) {
+    h += `<path d="M${B.mx0} ${Y(E0g)} H${B.mx1} L${B.ox1} ${Y(E0s)}" fill="none" stroke="#000" stroke-width="1" stroke-dasharray="4 3"/>`;
+    h += `<polyline points="${poly(pts.o)}" fill="none" stroke="#000" stroke-width="1" stroke-dasharray="4 3"/>`;
+    h += `<text x="${B.sx1 + 6}" y="${pts.o[N][1] + 4}" font-size="14" font-style="italic">E<tspan class="sub" dy="3">0</tspan></text>`;
+  }
+  // carriers drawn on the bands
+  if (xdPx > 0.5) {
+    for (let x = B.ox1 + 7; x < B.ox1 + xdPx - 3; x += 13) {
+      const ph = bendAt((x - B.ox1) / B.pxPerCm, st, phiDraw);
+      h += `<text x="${x}" y="${Y(EvB - ph) - 5}" font-size="13" font-weight="bold" text-anchor="middle" style="fill:#1592d2">−</text>`;
+    }
+  }
+  const bulkStart = B.ox1 + Math.max(xdPx, 0) + 14;
+  for (let x = bulkStart; x < B.sx1 - 6; x += 22) {
+    const ph = bendAt((x - B.ox1) / B.pxPerCm, st, phiDraw);
+    h += `<circle cx="${x}" cy="${Y(EvB - ph) + 6}" r="3.6" fill="#fff" stroke="#000" stroke-width="1.1"/>`;
+  }
+  if (st.Qinv < 0) {
+    const n = Math.min(10, 1 + Math.round(Math.abs(st.Qinv) / 7e-8));
+    for (let i = 0; i < n; i++) {
+      const x = B.ox1 + 4 + (i % 5) * 6, row = Math.floor(i / 5);
+      const ph = bendAt((x - B.ox1) / B.pxPerCm, st, phiDraw);
+      h += `<circle cx="${x}" cy="${Y(EcB - ph) + 5 + row * 6}" r="3" fill="#000"/>`;
+    }
+  }
+  if (st.Qacc > 1e-9) {
+    const n = Math.min(10, 1 + Math.round(st.Qacc / 7e-8));
+    for (let i = 0; i < n; i++) {
+      const x = B.ox1 + 5 + (i % 5) * 7, row = Math.floor(i / 5);
+      const ph = bendAt((x - B.ox1) / B.pxPerCm, st, phiDraw);
+      h += `<circle cx="${x}" cy="${Y(EvB - ph) + 6 + row * 7}" r="3" fill="#fff" stroke="#000" stroke-width="1.1"/>`;
+    }
+  }
+  h += `</g>`;
+  // oxide clipped at the top: break mark
+  if (Y(Math.max(oxTopG, oxTopS)) < B.yTop) {
+    h += `<path d="M${B.mx1 - 6} ${B.yTop + 4} l6 -4 l6 4 M${B.ox1 - 6} ${B.yTop + 4} l6 -4 l6 4" fill="none" stroke="#000" stroke-width="1"/>`;
+    h += `<text x="${(B.mx1 + B.ox1) / 2}" y="${B.yTop + 14}" font-size="10" text-anchor="middle" fill="#777" style="fill:#777">(oxide E<tspan class="sub" dy="2">c</tspan><tspan dy="-2"> off scale)</tspan></text>`;
+  }
+  // labels on the right
+  const lab = (E, t, sub, dy = 4) => `<text x="${B.sx1 + 6}" y="${Y(E) + dy}" font-size="14" font-style="italic">${t}<tspan class="sub" dy="3">${sub}</tspan></text>`;
+  h += lab(EcB, "E", "c") + lab(EiB, "E", "Fi") + lab(0, "E", "F", 2) + lab(EvB, "E", "v", 12);
+  h += `<text x="${B.mx0 + 2}" y="${Y(EFm) - 5}" font-size="14" font-style="italic">E<tspan class="sub" dy="3">Fm</tspan></text>`;
+
+  // E_Fm − E_F,Si gap
+  if (Math.abs(EFm) > 0.015) {
+    const ax = B.mx1 - 18;
+    h += `<line x1="${ax - 40}" y1="${Y(0)}" x2="${B.ox1}" y2="${Y(0)}" stroke="#1592d2" stroke-width="1" stroke-dasharray="1.5 2.5"/>`;
+    h += arrow(ax, Y(0), ax, Y(EFm));
+    let lbl;
+    const settled = sim.closed && Math.abs(st.Vint - sim.VG) < 0.005;
+    if (!sim.everConnected) lbl = `−eφ<tspan class="sub" dy="3">ms</tspan>`;
+    else if (settled) lbl = `−eV<tspan class="sub" dy="3">G</tspan>`;
+    else lbl = `E<tspan class="sub" dy="3">Fm</tspan><tspan dy="-3"> − E</tspan><tspan class="sub" dy="3">F,Si</tspan>`;
+    const gapPx = Math.abs(Y(0) - Y(EFm));
+    const ly = gapPx > 34 ? (Y(0) + Y(EFm)) / 2 + 4 : Math.min(Y(0), Y(EFm)) - 20;
+    h += `<text x="${ax - 6}" y="${ly}" font-size="13" font-style="italic" text-anchor="end" style="fill:#1592d2">${lbl}</text>`;
+    h += `<text x="${ax - 6}" y="${ly + 15}" font-size="11" text-anchor="end" style="fill:#1592d2">${sv(EFm)} eV</text>`;
+  }
+  // eV_ox across the oxide top
+  if (Math.abs(st.Vox) > 0.02 && Y(Math.max(oxTopG, oxTopS)) > B.yTop + 4) {
+    const hiLeft = oxTopG > oxTopS;
+    const yHi = Y(Math.max(oxTopG, oxTopS)), yLo = Y(Math.min(oxTopG, oxTopS));
+    const xHi = hiLeft ? B.mx1 : B.ox1, xLo = hiLeft ? B.ox1 : B.mx1;
+    h += `<line x1="${xLo}" y1="${yLo}" x2="${xLo + (hiLeft ? -26 : 26)}" y2="${yLo}" stroke="#1592d2" stroke-dasharray="1.5 2.5"/>`;
+    const ax2 = xLo + (hiLeft ? -12 : 12);
+    h += `<line x1="${xHi}" y1="${yHi}" x2="${ax2 + (hiLeft ? -8 : 8)}" y2="${yHi}" stroke="#1592d2" stroke-dasharray="1.5 2.5"/>`;
+    if (Math.abs(yLo - yHi) > 6) h += arrow(ax2, yHi, ax2, yLo, true);
+    h += `<text x="${(B.mx1 + B.ox1) / 2}" y="${yHi - 8}" font-size="13" font-style="italic" text-anchor="middle" style="fill:#1592d2">eV<tspan class="sub" dy="3">ox</tspan></text>`;
+  }
+  // eφ_s: bulk E_Fi vs surface E_Fi
+  if (st.phis > 0.02) {
+    const ax = Math.min(B.ox1 + xdPx + 40, B.sx1 - 60);
+    h += `<line x1="${B.ox1}" y1="${Y(EiB - st.phis)}" x2="${ax + 8}" y2="${Y(EiB - st.phis)}" stroke="#1592d2" stroke-width="1" stroke-dasharray="1.5 2.5"/>`;
+    h += arrow(ax, Y(EiB), ax, Y(EiB - st.phis), true);
+    h += `<text x="${ax + 6}" y="${(Y(EiB) + Y(EiB - st.phis)) / 2 + 5}" font-size="14" font-style="italic" style="fill:#1592d2">eφ<tspan class="sub" dy="3">s</tspan></text>`;
+  }
+  // x_d arrow
+  if (xdPx > 8) {
+    const y = B.yBot - 12;
+    h += arrow(B.ox1 + 2, y, B.ox1 + xdPx - 2, y, true);
+    h += `<text x="${B.ox1 + 6}" y="${y - 6}" font-size="12" style="fill:#1592d2">depletion, <tspan font-style="italic">x</tspan><tspan class="sub" dy="3" font-style="italic">${st.Qinv < 0 ? "dT" : "d"}</tspan></text>`;
+    if (sim.closed && sim.current > 3e-9) {
+      const yh = Y(EvB) + 26, x0 = B.ox1 + xdPx * 0.35, x1 = B.ox1 + xdPx + 40;
+      if (yh < y - 22) {
+        h += `<path d="M${x0} ${yh} H${x1} M${x1 - 6} ${yh - 4} L${x1} ${yh} L${x1 - 6} ${yh + 4}" fill="none" stroke="#c0392b" stroke-width="1.3"/>`;
+        h += `<text x="${x0}" y="${yh - 5}" font-size="12" style="fill:#c0392b">holes pushed away</text>`;
+      }
+    }
+  }
+  // region labels
+  h += `<text x="${(B.mx0 + B.mx1) / 2}" y="${B.yBot + 18}" font-size="13" text-anchor="middle">Metal</text>`;
+  h += `<text x="${(B.mx1 + B.ox1) / 2}" y="${B.yBot + 18}" font-size="13" text-anchor="middle">Oxide</text>`;
+  h += `<text x="${(B.ox1 + B.sx1) / 2}" y="${B.yBot + 18}" font-size="13" text-anchor="middle"><tspan font-style="italic">p</tspan>-Si</text>`;
+  h += `<text x="${B.sx1 - 4}" y="${B.yBot + 34}" font-size="11" text-anchor="end" style="fill:#888">${sim.showE0 ? "(not to scale in x)" : "(not to scale; oxide barrier height compressed)"}</text>`;
+  if (!sim.everConnected) h += `<text x="${(B.ox1 + B.sx1) / 2}" y="${Y(EcB) - 34}" font-size="13" text-anchor="middle" style="fill:#1592d2">no wire: flat bands, no charge</text>`;
+  $("svgB").innerHTML = h;
+}
+
+function arrow(x1, y1, x2, y2, both = false) {
+  const a = Math.atan2(y2 - y1, x2 - x1), L = 5;
+  const head = (x, y, ang) => `M${x - L * Math.cos(ang - 0.45)} ${y - L * Math.sin(ang - 0.45)} L${x} ${y} L${x - L * Math.cos(ang + 0.45)} ${y - L * Math.sin(ang + 0.45)}`;
+  let d = `M${x1} ${y1} L${x2} ${y2} ${head(x2, y2, a)}`;
+  if (both) d += ` ${head(x1, y1, a + Math.PI)}`;
+  return `<path d="${d}" fill="none" stroke="#1592d2" stroke-width="1.3"/>`;
+}
+
+/* ============================================================
+   Panel C: charge density ρ(x) (slides 14–16 style)
+   ============================================================ */
+function renderC(st) {
+  const x0 = 120, y0 = 128, qs = 110 / 8e-7;    // px per C/cm²
+  const xScale = 120 / xdT, blockH = 26;
+  let h = `<defs><pattern id="hatchC" width="5" height="5" patternUnits="userSpaceOnUse" patternTransform="rotate(45)"><rect width="5" height="5" fill="#fff"/><line x1="0" y1="0" x2="0" y2="5" stroke="#000" stroke-width="1"/></pattern></defs>`;
+  h += `<line x1="${x0}" y1="22" x2="${x0}" y2="258" stroke="#888" stroke-width="0.8" stroke-dasharray="2 2"/>`;
+  h += `<line x1="18" y1="${y0}" x2="316" y2="${y0}" stroke="#000" stroke-width="1"/><path d="M310 ${y0 - 4} L316 ${y0} L310 ${y0 + 4}" fill="none" stroke="#000"/>`;
+  h += `<text x="318" y="${y0 + 14}" font-size="12" font-style="italic" text-anchor="end">x</text>`;
+  h += `<text x="${x0 + 4}" y="32" font-size="12" font-style="italic">ρ(x)</text>`;
+  h += `<text x="${x0 - 30}" y="252" font-size="10" text-anchor="middle" fill="#777" style="fill:#777">gate</text><text x="${x0 + 30}" y="252" font-size="10" text-anchor="middle" style="fill:#777">Si</text>`;
+  // gate sheet
+  const hm = st.Qm * qs;
+  if (Math.abs(hm) > 0.4) {
+    h += `<rect x="${x0 - 14}" y="${hm > 0 ? y0 - hm : y0}" width="8" height="${Math.abs(hm)}" fill="#b3b3b3" stroke="#000" stroke-width="0.9"/>`;
+    h += `<text x="${x0 - 18}" y="${hm > 0 ? y0 - hm + 12 : y0 - hm - 2}" font-size="12" font-style="italic" text-anchor="end" style="fill:#c0392b">Q′<tspan class="sub" dy="3">m</tspan></text>`;
+  }
+  if (st.Qacc > 1e-12) {
+    const ha = st.Qacc * qs;
+    h += `<rect x="${x0 + 2}" y="${y0 - ha}" width="8" height="${ha}" fill="url(#hatchC)" stroke="#000" stroke-width="0.9"/>`;
+    h += `<text x="${x0 + 15}" y="${y0 - ha + 12}" font-size="12" style="fill:#1592d2"><tspan font-style="italic">Q′<tspan class="sub" dy="3">acc</tspan></tspan><tspan dy="-3"> (holes)</tspan></text>`;
+  }
+  const wd = st.xd * xScale;
+  if (wd > 0.4) {
+    h += `<rect x="${x0 + 1}" y="${y0}" width="${wd}" height="${blockH}" fill="url(#hatchC)" stroke="#000" stroke-width="0.9"/>`;
+    h += `<text x="${x0 + wd}" y="${y0 - 5}" font-size="12" font-style="italic" text-anchor="middle">x<tspan class="sub" dy="3">${st.Qinv < 0 ? "dT" : "d"}</tspan></text>`;
+    h += `<text x="${x0 + wd + 6}" y="${y0 + blockH - 6}" font-size="11" style="fill:#1592d2">−eN<tspan class="sub" dy="3">a</tspan><tspan dy="-3"> (Q′</tspan><tspan class="sub" dy="3">dep</tspan><tspan dy="-3">)</tspan></text>`;
+  }
+  if (st.Qinv < -1e-12) {
+    const hi = -st.Qinv * qs;
+    h += `<rect x="${x0 + 1}" y="${y0 + blockH + 2}" width="5" height="${hi}" fill="#000"/>`;
+    h += `<text x="${x0 + 12}" y="${y0 + blockH + 2 + Math.max(hi, 12)}" font-size="12" font-style="italic" style="fill:#1592d2">Q′<tspan class="sub" dy="3">inv</tspan></text>`;
+  }
+  $("svgC").innerHTML = h;
+}
+
+/* ============================================================
+   Panel D: readouts and voltage partition
+   ============================================================ */
+function modeOf(st) {
+  if (Math.abs(st.Qm) < 2e-10) return ["flat band", "#555"];
+  if (st.Qm < 0) return ["accumulation", "#1a5aa0"];
+  if (st.Qinv < 0) return ["inversion", "#0e7a4a"];
+  return ["depletion", "#1592d2"];
+}
+function renderD(st) {
+  const rows = [
+    ["V<sub>G</sub> (source)", sv(sim.VG) + " V"],
+    ["Q′<sub>m</sub>", sci(st.Qm) + " C/cm²"],
+    ["φ<sub>s</sub>", sv(st.phis, 3) + " V"],
+    [st.Qm < 0 ? "Q′<sub>acc</sub>" : "Q′<sub>dep</sub>", sci(st.Qm < 0 ? st.Qacc : st.Qdep) + " C/cm²"],
+    ["V<sub>ox</sub>", sv(st.Vox, 3) + " V"],
+    ["Q′<sub>inv</sub>", sci(st.Qinv) + " C/cm²"],
+    ["x<sub>d</sub>", (st.xd * 1e4).toFixed(4) + " µm"],
+    ["E<sub>Fm</sub> − E<sub>F,Si</sub>", sv(-st.Vint, 3) + " eV"],
+  ];
+  $("readouts").innerHTML = rows.map(r => `<div class="row"><span class="k">${r[0]}</span><span class="v">${r[1]}</span></div>`).join("");
+  const [m, c] = modeOf(st);
+  $("modeChip").textContent = m; $("modeChip").style.background = c;
+  let note = "";
+  if (m === "depletion" && st.phis > phifp) note = "weak-inversion range (φ<sub>fp</sub> < φ<sub>s</sub> < 2φ<sub>fp</sub>)";
+  if (m === "inversion") note = "φ<sub>s</sub> pinned at 2φ<sub>fp</sub>, x<sub>d</sub> = x<sub>dT</sub>";
+  if (m === "accumulation") note = "φ<sub>s</sub> ≈ 0: nearly all of V<sub>G</sub> − V<sub>FB</sub> is across the oxide";
+  $("modeNote").innerHTML = note;
+
+  // waterfall: V = φ_ms + V_ox + φ_s on a −3…+3 V axis
+  const L = 20, R = 434, vmin = -3, vmax = 3, X = v => L + (v - vmin) / (vmax - vmin) * (R - L);
+  let h = `<text x="${L}" y="12" font-size="12">Gate–body voltage: <tspan font-style="italic">V</tspan> = φ<tspan class="sub" dy="3">ms</tspan><tspan dy="-3"> + </tspan><tspan font-style="italic">V</tspan><tspan class="sub" dy="3">ox</tspan><tspan dy="-3"> + φ</tspan><tspan class="sub" dy="3">s</tspan></text>`;
+  const axY = 70;
+  h += `<line x1="${L}" y1="${axY}" x2="${R}" y2="${axY}" stroke="#000"/>`;
+  for (let v = vmin; v <= vmax; v++) {
+    h += `<line x1="${X(v)}" y1="${axY}" x2="${X(v)}" y2="${axY + 4}" stroke="#000"/><text x="${X(v)}" y="${axY + 15}" font-size="10" text-anchor="middle">${v === 0 ? "0" : sv(v, 0)}</text>`;
+  }
+  const segs = [["φ", "ms", phims, "#8c8c8c"], ["V", "ox", st.Vox, "#1592d2"], ["φ", "s", st.phis, "#7fc4ea"]];
+  let acc = 0;
+  segs.forEach((s, i) => {
+    const a = acc, z = acc + s[2]; acc = z;
+    const y = 17 + i * 14;
+    const xa = X(Math.min(a, z)), w = Math.max(1, Math.abs(X(z) - X(a)));
+    h += `<rect x="${xa}" y="${y}" width="${w}" height="11" fill="${s[3]}"/>`;
+    const tx = z >= a ? Math.max(X(a), X(z)) + 4 : Math.min(X(a), X(z)) - 4;
+    h += `<text x="${tx}" y="${y + 10}" font-size="10.5" text-anchor="${z >= a ? "start" : "end"}"><tspan font-style="${s[0] === "V" ? "italic" : "normal"}">${s[0]}</tspan><tspan class="sub" dy="2">${s[1]}</tspan><tspan dy="-2"> ${sv(s[2], 2)}</tspan></text>`;
+  });
+  h += `<line x1="${X(0)}" y1="16" x2="${X(0)}" y2="${axY}" stroke="#999" stroke-dasharray="2 2"/>`;
+  // device total (V_int) and source V_G
+  h += `<path d="M${X(st.Vint)} ${axY - 2} l-4 -7 h8 z" fill="#000"/>`;
+  h += `<path d="M${X(sim.VG)} ${axY + 2} l-4 7 h8 z" fill="#c0392b" transform="translate(0,${-2})"/>`;
+  const match = Math.abs(st.Vint - sim.VG) < 0.005;
+  h += `<text x="${R}" y="${axY + 30}" font-size="10.5" text-anchor="end">▲ sum = ${sv(st.Vint)} V   <tspan style="fill:#c0392b">▼ source V<tspan class="sub" dy="2">G</tspan><tspan dy="-2"> = ${sv(sim.VG)} V</tspan></tspan>${match ? "" : (sim.closed ? "  (settling)" : "  (disconnected)")}</text>`;
+  $("decomp").innerHTML = h;
+}
+
+/* ============================================================
+   Controls: V_G slider, V_G number line (slide 13), presets
+   ============================================================ */
+function renderVline(st) {
+  const L = 22, R = 432, y = 40, X = v => L + (v - VMIN) / (VMAX - VMIN) * (R - L);
+  let h = "";
+  h += `<text x="${(L + X(VFB)) / 2}" y="16" font-size="12" text-anchor="middle" style="fill:#1a4f8f">accumulation</text>`;
+  h += `<text x="${(X(VFB) + X(VT)) / 2}" y="16" font-size="12" text-anchor="middle" style="fill:#1a4f8f">depletion</text>`;
+  h += `<text x="${(X(VT) + R) / 2}" y="16" font-size="12" text-anchor="middle" style="fill:#1a4f8f">inversion</text>`;
+  h += `<line x1="${L}" y1="${y}" x2="${R + 10}" y2="${y}" stroke="#000" stroke-width="1.3"/><path d="M${R + 4} ${y - 4} L${R + 10} ${y} L${R + 4} ${y + 4}" fill="#000" stroke="#000"/>`;
+  [[VFB, "FB"], [VT, "T"]].forEach(([v, s]) => {
+    h += `<line x1="${X(v)}" y1="${y - 8}" x2="${X(v)}" y2="${y + 8}" stroke="#000" stroke-width="1.6"/>`;
+    h += `<text x="${X(v)}" y="${y + 24}" font-size="13" font-style="italic" text-anchor="middle" style="fill:#1592d2">V<tspan class="sub" dy="3">${s}</tspan></text>`;
+    h += `<text x="${X(v)}" y="${y + 36}" font-size="10" text-anchor="middle" style="fill:#1592d2">${sv(v)} V</text>`;
+  });
+  h += `<text x="${R + 10}" y="${y + 22}" font-size="13" font-style="italic" text-anchor="end">V<tspan class="sub" dy="3">G</tspan></text>`;
+  h += `<text x="${L}" y="${y + 22}" font-size="10" fill="#777" style="fill:#777">${sv(VMIN)}</text>`;
+  h += `<text x="${R - 18}" y="${y + 36}" font-size="10" text-anchor="end" style="fill:#777">${sv(VMAX)}</text>`;
+  // device point (black) and source pointer (red)
+  h += `<circle cx="${X(Math.max(VMIN, Math.min(VMAX, st.Vint)))}" cy="${y}" r="3.2" fill="#000"/>`;
+  h += `<path d="M${X(sim.VG)} ${y - 3} l-6 -10 h12 z" fill="#c0392b"/>`;
+  $("vline").innerHTML = h;
+}
+
+/* ============================================================
+   UI wiring
+   ============================================================ */
+function setVG(v) {
+  sim.VG = Math.max(VMIN, Math.min(VMAX, v));
+}
+function sliderEnabled() { return sim.everConnected; }
+function toggleSwitch() {
+  sim.closed = !sim.closed;
+  if (sim.closed) sim.everConnected = true;
+}
+function resetDevice() {
+  sim.Qm = 0; sim.closed = false; sim.everConnected = false; sim.VG = 0; sim.current = 0;
+}
+$("switchBtn").addEventListener("click", toggleSwitch);
+$("svgA").addEventListener("pointerdown", ev => { if (ev.target.closest("#swSym")) toggleSwitch(); });
+$("resetBtn").addEventListener("click", resetDevice);
+$("helpBtn").addEventListener("click", () => {
+  const hp = $("help"); hp.hidden = !hp.hidden; $("helpBtn").setAttribute("aria-expanded", String(!hp.hidden));
+});
+$("e0Toggle").addEventListener("change", ev => { sim.showE0 = ev.target.checked; });
+const presets = { pVFB: () => VFB, p0: () => 0, pVT: () => VT, pVT1: () => VT + 1 };
+Object.keys(presets).forEach(id => $(id).addEventListener("click", () => { if (sliderEnabled()) setVG(presets[id]()); }));
+
+const slider = $("vgSlider");
+slider.min = VMIN.toFixed(2); slider.max = VMAX.toFixed(2); slider.step = "0.01";
+slider.addEventListener("input", () => { if (sliderEnabled()) setVG(parseFloat(slider.value)); });
+function bump(d) { if (sliderEnabled()) setVG(Math.round((sim.VG + d) * 100) / 100); }
+$("stepDown").addEventListener("click", () => bump(-0.01));
+$("stepUp").addEventListener("click", () => bump(0.01));
+
+function renderControls() {
+  const on = sliderEnabled();
+  $("switchBtn").textContent = sim.closed ? "Open switch" : "Close switch";
+  $("switchBtn").classList.toggle("closed", sim.closed);
+  $("switchState").textContent = sim.closed ? "switch closed: wire connected" : (sim.everConnected ? "switch open: gate floating" : "switch open: never connected");
+  slider.disabled = !on; $("stepDown").disabled = !on; $("stepUp").disabled = !on;
+  if (Math.abs(parseFloat(slider.value) - sim.VG) > 0.004) slider.value = sim.VG.toFixed(2);
+  document.querySelectorAll(".preset").forEach(b => { b.disabled = !on; });
+  $("vgVal").textContent = sv(sim.VG) + " V";
+  $("disc").hidden = !(on && !sim.closed);
+  $("vgBox").style.opacity = on ? 1 : 0.45;
+  const bn = $("banner");
+  if (sim.closed) { bn.hidden = true; }
+  else if (!sim.everConnected) { bn.hidden = false; bn.className = "fresh"; bn.textContent = "No wire: Fermi levels stay apart"; }
+  else { bn.hidden = false; bn.className = ""; bn.textContent = "Switch open: gate floating, charge trapped"; }
+}
+
+function render() {
+  const st = stateOfQm(sim.Qm);
+  renderA(st); renderB(st); renderC(st); renderD(st); renderVline(st); renderControls();
+}
+
+/* ============================================================
+   Main loop, fit-to-window, self-test, test hooks
+   ============================================================ */
+let last = performance.now();
+function frame(t) {
+  const dt = Math.min(0.05, (t - last) / 1000); last = t;
+  if (!sim.manualClock) stepPhysics(dt);
+  render();
+  requestAnimationFrame(frame);
+}
+function fit() {
+  const s = Math.min(window.innerWidth / 1280, window.innerHeight / 720);
+  $("stage").style.transform = `scale(${s})`;
+}
+window.addEventListener("resize", fit); fit();
+
+function selfTest() {
+  const checks = [
+    ["phi_fp ≈ 0.41 V", phifp, 0.41, 0.01],
+    ["phi_ms ≈ -0.70 V", phims, -0.70, 0.01],
+    ["C_ox ≈ 3.45e-7 F/cm2", Cox, 3.45e-7, 0.01e-7],
+    ["x_dT ≈ 0.10 um", xdT * 1e4, 0.10, 0.005],
+    ["Q'_dep(max) = -eN_a x_dT", QdepMax, -e * P.Na * xdT, 1e-20],
+    ["V_T ≈ 0.59 V", VT, 0.59, 0.01],
+  ];
+  const res = checks.map(([n, v, ref, tol]) => ({ name: n, value: v, pass: Math.abs(v - ref) <= tol }));
+  res.forEach(r => console.log(`[selftest] ${r.pass ? "PASS" : "FAIL"} ${r.name}: ${r.value}`));
+  return res;
+}
+selfTest();
+
+window.MOS = {
+  params: { phifp, phims, VFB, Cox, xdT, QdepMax, VT, LD, VMIN, VMAX },
+  selfTest, stateOfQm, QmOfV, counts,
+  state: () => ({ ...stateOfQm(sim.Qm), closed: sim.closed, VG: sim.VG, everConnected: sim.everConnected }),
+  setManualClock(on) { sim.manualClock = on; },
+  advance(t, dt = 1 / 120) { for (let s = 0; s < t - 1e-9; s += dt) stepPhysics(Math.min(dt, t - s)); render(); },
+  toggleSwitch() { toggleSwitch(); render(); },
+  setVG(v) { setVG(v); render(); },
+  settle() { if (sim.closed) sim.Qm = QmOfV(sim.VG); sim.current = 0; render(); },
+  reset() { resetDevice(); render(); },
+  showE0(on) { sim.showE0 = on; $("e0Toggle").checked = on; render(); },
+};
+render();
+requestAnimationFrame(frame);
+</script>
+</body>
+</html>
